@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Shift Preflight</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2330; --line:#2a3340;
+    --txt:#e6edf3; --dim:#8b98a8; --accent:#4cc38a; --warn:#e3b341;
+    --fail:#f85149; --info:#58a6ff; --pend:#6e7b8b;
+    --mono:ui-monospace,SFMono-Regular,"Cascadia Mono",Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --line:#d8dee4;
+      --txt:#1f2328; --dim:#5b6673; --accent:#1a7f4b; --warn:#9a6700;
+      --fail:#cf222e; --info:#0969da; --pend:#8b949e;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);
+       font-size:15px;line-height:1.5;padding:24px 16px 80px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.02em}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--dim);margin:0 0 20px;font-size:.92rem}
+  h2{font-size:.74rem;text-transform:uppercase;letter-spacing:.11em;color:var(--dim);
+     margin:26px 0 8px;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .steps{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+         padding:14px 18px 14px 8px;margin-bottom:6px}
+  .steps ol{margin:0;padding-left:28px}
+  .steps li{margin:6px 0}
+  code{background:var(--bg);padding:1px 6px;border-radius:4px;
+       font-family:var(--mono);font-size:.84em;word-break:break-word}
+  .row{display:flex;gap:10px;align-items:flex-start;padding:8px 13px;border-top:1px solid var(--line)}
+  .row:first-child{border-top:0}
+  .badge{flex:0 0 54px;font-family:var(--mono);font-size:.63rem;font-weight:700;
+         letter-spacing:.05em;text-align:center;padding:3px 0;border-radius:4px;margin-top:2px}
+  .PASS{background:rgba(76,195,138,.16);color:var(--accent)}
+  .FAIL{background:rgba(248,81,73,.18);color:var(--fail)}
+  .WARN{background:rgba(227,179,65,.16);color:var(--warn)}
+  .INFO{background:rgba(88,166,255,.14);color:var(--info)}
+  .PEND{background:rgba(110,123,139,.20);color:var(--pend)}
+  .sev{flex:0 0 58px;font-family:var(--mono);font-size:.58rem;letter-spacing:.06em;
+       text-align:center;padding:4px 0;color:var(--dim);margin-top:2px}
+  .sev.blocker{color:var(--fail);font-weight:700}
+  .nm{flex:0 0 200px;font-weight:600;font-size:.87rem}
+  .dt{flex:1;color:var(--dim);font-family:var(--mono);font-size:.75rem;
+      word-break:break-word;min-width:0;padding-top:2px}
+  .row.bad .dt{color:var(--fail)}
+  .verdict{border-radius:10px;padding:18px 20px;margin:20px 0;
+           border:1px solid var(--line);background:var(--panel)}
+  .verdict b{display:block;font-size:1.15rem;margin-bottom:6px;font-family:var(--mono);
+             letter-spacing:.04em}
+  .verdict p{margin:0;color:var(--dim);font-size:.89rem}
+  .v-go b{color:var(--accent)} .v-lim b{color:var(--warn)}
+  .v-no b{color:var(--fail)} .v-pend b{color:var(--pend)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  button{font:inherit;font-size:.85rem;font-weight:600;padding:8px 14px;border-radius:7px;
+         border:1px solid var(--line);background:var(--panel2);color:var(--txt);cursor:pointer}
+  button:hover{border-color:var(--dim)}
+  button.primary{background:var(--accent);color:#06140d;border-color:transparent}
+  .hardstop{background:var(--fail);color:#fff;padding:20px;border-radius:10px;line-height:1.6;
+            margin-bottom:16px}
+  .hardstop code{background:rgba(0,0,0,.25);color:#fff}
+  .note{color:var(--dim);font-size:.81rem;margin-top:10px}
+  input[type=file]{display:none}
+  #keyfield,#pastefield{width:100%;margin-top:10px;background:var(--bg);color:var(--txt);
+    border:1px solid var(--line);border-radius:7px;padding:9px 11px;font:inherit;font-size:.86rem}
+  textarea#out{width:100%;height:200px;background:var(--bg);color:var(--txt);
+           border:1px solid var(--line);border-radius:8px;font-family:var(--mono);
+           font-size:.72rem;padding:10px;margin-top:12px}
+  .manual{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+          padding:14px 18px 14px 8px;margin-top:10px}
+  .manual ol{margin:0;padding-left:28px}
+  .manual li{margin:6px 0;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="nojs" class="hardstop">
+    <b>JavaScript did not run.</b><br>
+    This page's script was blocked &mdash; by browser policy, an extension, or a proxy.
+    That is a hard NO-GO on this machine. Check <code>chrome://policy</code> for
+    <code>JavaScriptBlockedForUrls</code> or <code>DefaultJavaScriptSetting</code>.
+  </div>
+
+  <div id="partial" class="hardstop" hidden>
+    <b>The script started but did not finish.</b><br>
+    Something threw partway through. That usually means this browser is too old to
+    parse part of this page. Send me a screenshot of whatever appears below, plus
+    your browser version from <code>chrome://version</code>.
+  </div>
+
+  <main id="app" hidden>
+    <h1>NIGHT <span>SHIFT</span> &mdash; Preflight</h1>
+    <p class="sub">Full capability probe. Nothing is sent anywhere; this file makes no network requests.</p>
+
+    <div class="steps">
+      <ol>
+        <li>Open this from where you'll really keep it &mdash; <b>the USB stick</b> or <b>your OneDrive sync folder</b>. Not from Downloads.</li>
+        <li>Run <b>every</b> interactive test below. They need a real click to be permitted.</li>
+        <li><b>Reload</b> (F5). Then <b>fully close and reopen the browser</b> and load this page again.</li>
+        <li>Do the manual checks at the bottom.</li>
+        <li>Press <b>Copy diagnostics</b> and send me the text.</li>
+      </ol>
+    </div>
+
+    <div id="verdict" class="verdict v-pend">
+      <b>WAITING</b>
+      <p>Run the interactive tests, then reload.</p>
+    </div>
+
+    <h2>Blockers &mdash; the game cannot run without these</h2>
+    <div class="card" id="g-block"></div>
+
+    <h2>Language level &mdash; can this browser parse the game?</h2>
+    <div class="card" id="g-lang"></div>
+
+    <h2>Where this file is running</h2>
+    <div class="card" id="g-env"></div>
+
+    <h2>Persistence</h2>
+    <div class="card" id="g-store"></div>
+    <div class="btns">
+      <button id="b-restart">I just fully quit and reopened the browser</button>
+    </div>
+    <p class="note">Press that <b>only</b> after closing every browser window and reopening this file from the same place. It is the one check that proves progress is not wiped on exit.</p>
+
+    <h2>Getting progress in and out</h2>
+    <div class="card" id="g-io"></div>
+    <div class="btns">
+      <button id="b-dl">Test download</button>
+      <button id="b-pick">Test file picker</button>
+      <button id="b-clip">Test clipboard copy</button>
+    </div>
+    <label for="pastefield" class="note">Paste test &mdash; copy any text, then paste into this box:</label>
+    <input id="pastefield" type="text" placeholder="paste here (Ctrl+V)">
+    <p class="note">The download test saves <code>nightshift-preflight.txt</code> &mdash; that file is also your report.</p>
+
+    <h2>Rendering</h2>
+    <div class="card" id="g-render"></div>
+
+    <h2>Input</h2>
+    <div class="card" id="g-input"></div>
+    <label for="keyfield" class="note">Keyboard test &mdash; click this box and press any key:</label>
+    <input id="keyfield" type="text" placeholder="click here, then press a key">
+
+    <h2>Platform APIs</h2>
+    <div class="card" id="g-api"></div>
+
+    <h2>Performance</h2>
+    <div class="card" id="g-perf"></div>
+
+    <h2>Manual checks &mdash; please do these too</h2>
+    <div class="manual">
+      <ol>
+        <li>Open <code>chrome://policy</code> (or <code>edge://policy</code>) and screenshot it. Look for <code>URLBlocklist</code>, <code>DefaultCookiesSetting</code>, <code>DownloadRestrictions</code>, <code>AllowFileSelectionDialogs</code>, <code>DeveloperToolsAvailability</code>.</li>
+        <li>Open <code>chrome://management</code> and screenshot it &mdash; it says whether the browser is managed.</li>
+        <li>Open <code>chrome://version</code> and note the version and the profile path.</li>
+        <li><b>Close the browser completely, reopen it, load this page again.</b> The "survives a browser restart" row must say PASS.</li>
+        <li>If on a USB stick: eject it, plug it into a different port so it may get a different drive letter, and reopen. Note whether the stored value is still found.</li>
+      </ol>
+    </div>
+
+    <div class="btns" style="margin-top:24px">
+      <button class="primary" id="b-copy">Copy diagnostics</button>
+      <button id="b-show">Show as text</button>
+      <button id="b-reset">Clear stored test data</button>
+    </div>
+    <textarea id="out" hidden readonly></textarea>
+  </main>
+</div>
+
+<script>
+/* Deliberately ES5. This file has to run on a browser too old to run the game,
+   because telling us "your browser is too old" is one of its jobs. */
+(function () {
+  'use strict';
+
+  var nojs = document.getElementById('nojs');
+  var partial = document.getElementById('partial');
+  var app = document.getElementById('app');
+  if (nojs) nojs.hidden = true;
+  if (partial) partial.hidden = false;
+  if (app) app.hidden = false;
+
+  var KEY = 'nightshift.preflight.v2';
+  var RESTART_KEY = 'nightshift.preflight.session.v2';
+  var LAUNCH_KEY = 'nightshift.preflight.launches.v2';
+  var launchCount = 0;
+  var firstSeen = '';
+  var rows = [];
+  var byName = {};
+
+  var GROUPS = {
+    block: 'g-block', lang: 'g-lang', env: 'g-env', store: 'g-store',
+    io: 'g-io', render: 'g-render', input: 'g-input', api: 'g-api', perf: 'g-perf'
+  };
+
+  /* severity: blocker = game cannot run | major = runs but badly | minor | info */
+  function set(group, name, severity, status, detail) {
+    var r = byName[name];
+    if (!r) { r = { group: group, name: name }; rows.push(r); byName[name] = r; }
+    r.severity = severity;
+    r.status = status;
+    r.detail = detail === undefined || detail === null ? '' : String(detail);
+    paint();
+  }
+
+  function statusOf(name) { return byName[name] ? byName[name].status : 'PENDING'; }
+
+  function paint() {
+    for (var key in GROUPS) {
+      if (!Object.prototype.hasOwnProperty.call(GROUPS, key)) continue;
+      var host = document.getElementById(GROUPS[key]);
+      if (!host) continue;
+      host.textContent = '';
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (r.group !== key) continue;
+        host.appendChild(renderRow(r));
+      }
+    }
+    verdict();
+  }
+
+  function renderRow(r) {
+    var line = document.createElement('div');
+    line.className = 'row' + (r.status === 'FAIL' ? ' bad' : '');
+
+    var badge = document.createElement('div');
+    badge.className = 'badge ' + (r.status === 'PENDING' ? 'PEND' : r.status);
+    badge.textContent = r.status === 'PENDING' ? 'PEND' : r.status;
+
+    var sev = document.createElement('div');
+    sev.className = 'sev' + (r.severity === 'blocker' ? ' blocker' : '');
+    sev.textContent = r.severity === 'info' ? '' : r.severity;
+
+    var nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.textContent = r.name;
+
+    var dt = document.createElement('div');
+    dt.className = 'dt';
+    dt.textContent = r.detail;
+
+    line.appendChild(badge); line.appendChild(sev);
+    line.appendChild(nm); line.appendChild(dt);
+    return line;
+  }
+
+  function countFailures(severity) {
+    var n = 0;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].severity === severity && rows[i].status === 'FAIL') n++;
+    }
+    return n;
+  }
+
+  function anyPending() {
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].status === 'PENDING' && rows[i].severity !== 'info') return true;
+    }
+    return false;
+  }
+
+  function verdict() {
+    var host = document.getElementById('verdict');
+    if (!host) return;
+    var blockers = countFailures('blocker');
+    var majors = countFailures('major');
+    var cls, head, body;
+
+    if (blockers > 0) {
+      cls = 'v-no'; head = 'NO-GO';
+      body = blockers + ' blocking problem' + (blockers === 1 ? '' : 's') +
+        '. The game will not run here as designed. Send me the diagnostics — ' +
+        'depending on which ones, the fix is either the hosted link or a different build target.';
+    } else if (anyPending()) {
+      cls = 'v-pend'; head = 'WAITING';
+      body = 'No blockers so far. Run the remaining interactive tests, then reload.';
+    } else if (majors > 0) {
+      cls = 'v-lim'; head = 'GO WITH LIMITS';
+      body = majors + ' thing' + (majors === 1 ? '' : 's') +
+        ' will not work properly. The game runs, but something important is degraded — see the rows marked major.';
+    } else {
+      cls = 'v-go'; head = 'GO';
+      body = 'Everything the game needs works here.';
+    }
+
+    host.className = 'verdict ' + cls;
+    host.textContent = '';
+    var b = document.createElement('b'); b.textContent = head;
+    var p = document.createElement('p'); p.textContent = body;
+    host.appendChild(b); host.appendChild(p);
+  }
+
+  function ok(condition) { return condition ? 'PASS' : 'FAIL'; }
+
+  /* ============ language level ============ */
+  /* Probed with new Function so a syntax error is caught instead of being fatal. */
+
+  var evalAllowed = true;
+  try { new Function('return 1'); } catch (e) { evalAllowed = false; }
+
+  function parses(code) {
+    try { new Function(code); return true; } catch (e) { return false; }
+  }
+
+  function composite(group, name, severity, features) {
+    if (!evalAllowed) {
+      set(group, name, severity, 'WARN', 'cannot probe: this page is not allowed to compile code (CSP unsafe-eval)');
+      return true;
+    }
+    var missing = [];
+    for (var i = 0; i < features.length; i++) {
+      var label = features[i][0];
+      var test = features[i][1];
+      var good = typeof test === 'string' ? parses(test) : !!test();
+      if (!good) missing.push(label);
+    }
+    set(group, name, severity, ok(missing.length === 0),
+        missing.length ? 'missing: ' + missing.join(', ') : 'all supported');
+    return missing.length === 0;
+  }
+
+  set('lang', 'Code compilation', 'info', evalAllowed ? 'PASS' : 'WARN',
+      evalAllowed ? 'new Function() allowed, so language probes below are reliable'
+                  : 'blocked by CSP — probes below are inconclusive, not failures');
+
+  composite('lang', 'ES2015 core', 'blocker', [
+    ['let/const', 'let a = 1; const b = 2;'],
+    ['arrow functions', 'var f = () => 1;'],
+    ['template literals', 'var x = `a${1}b`;'],
+    ['classes', 'class A { constructor() {} }'],
+    ['destructuring', 'var {a} = {a:1}; var [b] = [2];'],
+    ['spread/rest', 'function f(...r) {} var x = [...[1,2]];'],
+    ['default params', 'function f(a = 1) {}'],
+    ['for...of', 'for (var x of [1]) {}'],
+    ['Promise', function () { return typeof Promise === 'function'; }],
+    ['Map/Set', function () { return typeof Map === 'function' && typeof Set === 'function'; }],
+    ['Symbol', function () { return typeof Symbol === 'function'; }]
+  ]);
+
+  composite('lang', 'ES2017 / ES2018', 'blocker', [
+    ['async/await', 'async function f() { await 1; }'],
+    ['object spread', 'var o = {...{a:1}};'],
+    ['async iteration', 'async function f() { for await (var x of []) {} }'],
+    ['Object.entries', function () { return typeof Object.entries === 'function'; }],
+    ['Object.values', function () { return typeof Object.values === 'function'; }]
+  ]);
+
+  composite('lang', 'ES2019 / ES2020', 'blocker', [
+    ['optional catch', 'try {} catch {}'],
+    ['Array.flat', function () { return typeof [].flat === 'function'; }],
+    ['Object.fromEntries', function () { return typeof Object.fromEntries === 'function'; }],
+    ['optional chaining', 'var x = ({}).a?.b;'],
+    ['nullish coalescing', 'var x = null ?? 1;'],
+    ['globalThis', function () { return typeof globalThis === 'object'; }],
+    ['String.matchAll', function () { return typeof ''.matchAll === 'function'; }]
+  ]);
+
+  composite('lang', 'ES2021 / ES2022', 'blocker', [
+    ['logical assignment', 'var a = null; a ||= 1; a &&= 2; a ??= 3;'],
+    ['numeric separators', 'var x = 1_000;'],
+    ['String.replaceAll', function () { return typeof ''.replaceAll === 'function'; }],
+    ['class fields', 'class A { x = 1; }'],
+    ['private fields', 'class A { #x = 1; has() { return this.#x; } }'],
+    ['static blocks', 'class A { static {} }'],
+    ['Array.at', function () { return typeof [].at === 'function'; }],
+    ['Object.hasOwn', function () { return typeof Object.hasOwn === 'function'; }],
+    ['error cause', function () { try { return new Error('x', { cause: 1 }).cause === 1; } catch (e) { return false; } }]
+  ]);
+
+  composite('lang', 'Newer niceties', 'minor', [
+    ['structuredClone', function () { return typeof structuredClone === 'function'; }],
+    ['Array.findLast', function () { return typeof [].findLast === 'function'; }],
+    ['Array.toSorted', function () { return typeof [].toSorted === 'function'; }],
+    ['Intl', function () { return typeof Intl === 'object'; }]
+  ]);
+
+  /* ============ environment ============ */
+
+  var href = location.href;
+  var isFile = location.protocol === 'file:';
+  var isUnc = href.indexOf('file://') === 0 && href.indexOf('file:///') !== 0;
+
+  set('env', 'Location', 'info', 'INFO', href);
+  set('env', 'Protocol', 'info', 'INFO',
+      location.protocol + (isFile ? '   (local file, as intended)' : '   (NOT a local file)'));
+  set('env', 'Path type', 'major', isUnc ? 'WARN' : 'PASS',
+      isUnc ? 'network/UNC path — storage and permissions behave differently here'
+            : 'ordinary local path');
+
+  /* Running from a browser's download-preview folder is the quiet killer: the
+     folder name contains a fresh random GUID every time, and saved progress is
+     keyed to the full file URL, so every reopen starts empty. */
+  var lower = href.toLowerCase();
+  var volatilePath = false;
+  var volatileHints = ['microsoftedgedownloads', '/appdata/local/temp', '/temp/',
+                       'inetcache', '/downloads/', 'temporary internet files'];
+  for (var vi = 0; vi < volatileHints.length; vi++) {
+    if (lower.indexOf(volatileHints[vi]) !== -1) { volatilePath = true; break; }
+  }
+  set('env', 'Path stability', 'major', volatilePath ? 'FAIL' : 'PASS',
+      volatilePath
+        ? 'TEMPORARY folder — the browser renames it every time you open the file, so all saved progress is orphaned on each reopen. Save the file to the USB stick or your OneDrive folder and run it from there.'
+        : 'stable path — progress saved here will be found again');
+
+  var ua = navigator.userAgent;
+  var engine = 'unknown', version = 0;
+  function grab(re) { var m = ua.match(re); return m ? parseInt(m[1], 10) : 0; }
+  if (/Edg\//.test(ua)) { engine = 'Edge'; version = grab(/Edg\/(\d+)/); }
+  else if (/OPR\//.test(ua)) { engine = 'Opera'; version = grab(/OPR\/(\d+)/); }
+  else if (/Firefox\//.test(ua)) { engine = 'Firefox'; version = grab(/Firefox\/(\d+)/); }
+  else if (/Chrome\//.test(ua)) { engine = 'Chrome'; version = grab(/Chrome\/(\d+)/); }
+  else if (/Safari\//.test(ua)) { engine = 'Safari'; version = grab(/Version\/(\d+)/); }
+
+  var MIN = { Chrome: 100, Edge: 100, Firefox: 100, Opera: 86, Safari: 15 };
+  var floor = MIN[engine] || 0;
+  set('env', 'Browser', 'blocker',
+      (floor && version && version < floor) ? 'FAIL' : 'PASS',
+      engine + ' ' + (version || '?') +
+        (floor ? (version >= floor ? '  (build targets ' + floor + '+)' :
+          '  — TOO OLD, the game is built for ' + engine + ' ' + floor + '+') : ''));
+
+  set('env', 'Legacy IE mode', 'blocker',
+      (typeof document.documentMode !== 'undefined') ? 'FAIL' : 'PASS',
+      (typeof document.documentMode !== 'undefined')
+        ? 'running in Internet Explorer compatibility mode — nothing modern will work'
+        : 'not in IE mode');
+
+  set('env', 'User agent', 'info', 'INFO', ua);
+  set('env', 'Secure context', 'minor', window.isSecureContext ? 'PASS' : 'WARN',
+      String(window.isSecureContext));
+  set('env', 'Network', 'info', 'INFO',
+      'navigator.onLine = ' + navigator.onLine + ' (the game never needs it)');
+  try {
+    set('env', 'Locale / timezone', 'info', 'INFO',
+        (navigator.language || '?') + '  ' + Intl.DateTimeFormat().resolvedOptions().timeZone);
+  } catch (e) { set('env', 'Locale / timezone', 'info', 'INFO', 'unavailable'); }
+
+  /* ============ persistence ============ */
+
+  var prior = null, storageError = null;
+  try {
+    prior = window.localStorage.getItem(KEY);
+    var payload = '{"at":"' + new Date().toISOString() + '","href":"' + href.split('"').join('') + '"}';
+    window.localStorage.setItem(KEY, payload);
+    var back = window.localStorage.getItem(KEY);
+    set('store', 'localStorage', 'major', ok(back === payload),
+        back === payload ? 'wrote and read back OK' : 'wrote a value but read something else');
+  } catch (e) {
+    storageError = e;
+    set('store', 'localStorage', 'major', 'FAIL',
+        ((e && e.name) ? e.name + ': ' : '') + ((e && e.message) || e));
+  }
+
+  if (storageError) {
+    set('store', 'Survives reload', 'major', 'FAIL', 'storage unavailable');
+    set('store', 'Survives a browser restart', 'major', 'FAIL', 'storage unavailable');
+  } else {
+    if (prior) {
+      var when = prior;
+      try { when = JSON.parse(prior).at; } catch (e2) {}
+      set('store', 'Survives reload', 'major', 'PASS', 'found a value written at ' + when);
+    } else {
+      set('store', 'Survives reload', 'major', 'PENDING', 'first run here — press F5 to re-check');
+    }
+
+    /* sessionStorage cannot tell a browser restart from a new tab — both start
+       empty — so the restart question is answered by an explicit button below,
+       backed by a launch counter that only localStorage can keep. */
+    var record = null;
+    try { record = JSON.parse(window.localStorage.getItem(LAUNCH_KEY) || 'null'); } catch (e3) {}
+    launchCount = (record && record.count ? record.count : 0) + 1;
+    firstSeen = (record && record.first) ? record.first : new Date().toISOString();
+    try {
+      window.localStorage.setItem(LAUNCH_KEY,
+        '{"count":' + launchCount + ',"first":"' + firstSeen + '"}');
+    } catch (e4) {}
+
+    set('store', 'Launches at this exact path', 'minor', launchCount > 1 ? 'PASS' : 'PENDING',
+        'load #' + launchCount + ', first seen ' + firstSeen +
+        (launchCount > 1 ? '' : ' — reload to confirm it counts up'));
+
+    set('store', 'Survives a browser restart', 'major', 'PENDING',
+        'fully quit the browser (every window), reopen, load this file from the SAME path, then press the button below');
+  }
+
+  try {
+    window.sessionStorage.setItem(KEY, '1');
+    set('store', 'sessionStorage', 'minor', ok(window.sessionStorage.getItem(KEY) === '1'), '');
+  } catch (e) {
+    set('store', 'sessionStorage', 'minor', 'FAIL', (e && e.message) || e);
+  }
+
+  /* how much can we actually store? the save file needs well under 256 KB */
+  (function capacity() {
+    if (storageError) { set('store', 'Storage capacity', 'major', 'FAIL', 'storage unavailable'); return; }
+    var probeKey = KEY + '.cap';
+    var sizes = [64, 256, 1024, 4096];
+    var best = 0;
+    for (var i = 0; i < sizes.length; i++) {
+      var chunk = new Array(sizes[i] * 1024 + 1).join('x');
+      try {
+        window.localStorage.setItem(probeKey, chunk);
+        best = sizes[i];
+      } catch (e) { break; }
+    }
+    try { window.localStorage.removeItem(probeKey); } catch (e) {}
+    set('store', 'Storage capacity', 'major', best >= 256 ? 'PASS' : 'FAIL',
+        'wrote ' + best + ' KB in one key' + (best >= 256 ? ' (a save needs far less)' : ' — too small for a save'));
+  })();
+
+  set('store', 'Cookies enabled', 'info', 'INFO', String(navigator.cookieEnabled) +
+      '  (not used, but the same policy often governs localStorage)');
+
+  (function indexedDbProbe() {
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (!settled) { settled = true; set('store', 'IndexedDB', 'info', 'INFO', 'no response in 2s (unused by the game)'); }
+    }, 2000);
+    function done(detail) {
+      if (settled) return;
+      settled = true; clearTimeout(timer);
+      set('store', 'IndexedDB', 'info', 'INFO', detail);
+    }
+    try {
+      var rq = indexedDB.open('nightshift_preflight', 1);
+      rq.onsuccess = function () { done('available (unused by the game)'); try { rq.result.close(); } catch (e) {} };
+      rq.onerror = function () { done('blocked (unused by the game)'); };
+    } catch (e) { done('threw (unused by the game)'); }
+  })();
+
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      navigator.storage.estimate().then(function (est) {
+        set('store', 'Storage quota', 'info', 'INFO',
+            'about ' + Math.round((est.quota || 0) / 1048576) + ' MB reported');
+      }, function () { set('store', 'Storage quota', 'info', 'INFO', 'not reported'); });
+    } catch (e) { set('store', 'Storage quota', 'info', 'INFO', 'not reported'); }
+  } else {
+    set('store', 'Storage quota', 'info', 'INFO', 'API unavailable');
+  }
+
+  /* ============ import / export ============ */
+
+  set('io', 'Blob + object URL', 'major',
+      ok(typeof Blob === 'function' && window.URL && typeof URL.createObjectURL === 'function'), '');
+  set('io', 'FileReader API', 'major', ok(typeof FileReader === 'function'), '');
+  set('io', 'Download', 'major', 'PENDING', 'press "Test download"');
+  set('io', 'File picker + read', 'major', 'PENDING', 'press "Test file picker"');
+  set('io', 'Clipboard copy', 'minor', 'PENDING', 'press "Test clipboard copy"');
+  set('io', 'Clipboard paste', 'minor', 'PENDING', 'paste something into the box below');
+
+  /* ============ rendering ============ */
+
+  function cssSupports(prop, value) {
+    try {
+      if (!window.CSS || !CSS.supports) return false;
+      return value === undefined ? CSS.supports(prop) : CSS.supports(prop, value);
+    } catch (e) { return false; }
+  }
+
+  composite('render', 'Core layout', 'blocker', [
+    ['grid', function () { return cssSupports('display', 'grid'); }],
+    ['flexbox', function () { return cssSupports('display', 'flex'); }],
+    ['custom properties', function () { return cssSupports('--x', '1'); }],
+    ['position sticky', function () { return cssSupports('position', 'sticky'); }]
+  ]);
+
+  /* flex gap cannot be feature-detected reliably; measure it */
+  (function flexGap() {
+    try {
+      var probe = document.createElement('div');
+      probe.style.display = 'flex';
+      probe.style.flexDirection = 'column';
+      probe.style.rowGap = '10px';
+      probe.style.position = 'absolute';
+      probe.style.visibility = 'hidden';
+      probe.appendChild(document.createElement('div'));
+      probe.appendChild(document.createElement('div'));
+      document.body.appendChild(probe);
+      var supported = probe.scrollHeight === 10;
+      probe.parentNode.removeChild(probe);
+      set('render', 'Flex gap', 'blocker', ok(supported),
+          supported ? 'measured correctly' : 'not supported — every layout would collapse');
+    } catch (e) {
+      set('render', 'Flex gap', 'blocker', 'FAIL', (e && e.message) || e);
+    }
+  })();
+
+  composite('render', 'Modern CSS', 'minor', [
+    [':has()', function () { return cssSupports('selector(:has(*))'); }],
+    ['color-mix', function () { return cssSupports('color', 'color-mix(in srgb, red, blue)'); }],
+    ['container queries', function () { return cssSupports('container-type', 'inline-size'); }],
+    ['clamp()', function () { return cssSupports('width', 'clamp(1px, 2px, 3px)'); }],
+    ['aspect-ratio', function () { return cssSupports('aspect-ratio', '1'); }]
+  ]);
+
+  var svgOk = false;
+  try { svgOk = !!document.createElementNS('http://www.w3.org/2000/svg', 'svg').createSVGRect; } catch (e) {}
+  set('render', 'SVG', 'blocker', ok(svgOk), svgOk ? '' : 'the topology view and all diagrams need SVG');
+
+  var canvasOk = false;
+  try { canvasOk = !!document.createElement('canvas').getContext('2d'); } catch (e) {}
+  set('render', 'Canvas 2D', 'minor', ok(canvasOk), '');
+
+  function media(query) {
+    try { return window.matchMedia && window.matchMedia(query).matches; } catch (e) { return false; }
+  }
+
+  var forced = media('(forced-colors: active)');
+  set('render', 'Forced colours', 'major', forced ? 'FAIL' : 'PASS',
+      forced ? 'Windows High Contrast is ON — the game’s colours are overridden and may be unreadable'
+             : 'off — the game controls its own colours');
+
+  set('render', 'Colour scheme', 'info', 'INFO',
+      media('(prefers-color-scheme: dark)') ? 'dark preferred' : 'light preferred');
+  set('render', 'Reduced motion', 'info', 'INFO',
+      media('(prefers-reduced-motion: reduce)') ? 'ON — animations will be suppressed' : 'off');
+
+  set('render', 'Print', 'minor', ok(typeof window.print === 'function'),
+      'needed for the printable cheat sheets');
+
+  var w = window.innerWidth, h = window.innerHeight;
+  set('render', 'Viewport', 'major', (w >= 900 && h >= 500) ? 'PASS' : 'WARN',
+      w + '×' + h + ' css px @' + (window.devicePixelRatio || 1) + 'x' +
+      '   screen ' + screen.width + '×' + screen.height +
+      ((w >= 900 && h >= 500) ? '' : '   — cramped; the game wants 900×500 or more'));
+
+  var zoom = Math.round(((window.outerWidth || w) / w) * 100);
+  set('render', 'Zoom', 'info', 'INFO', 'roughly ' + (isFinite(zoom) ? zoom : 100) + '%');
+
+  /* ============ input ============ */
+
+  set('input', 'Keyboard', 'blocker', 'PENDING', 'click the box below and press a key');
+  set('input', 'Pointer', 'info', 'INFO',
+      'touch points ' + (navigator.maxTouchPoints || 0) +
+      (window.PointerEvent ? ', pointer events supported' : ', no pointer events'));
+  set('input', 'Focus', 'info', 'INFO',
+      document.hasFocus && document.hasFocus() ? 'this window has focus' : 'this window is not focused');
+
+  /* ============ platform APIs ============ */
+
+  set('api', 'requestAnimationFrame', 'blocker',
+      ok(typeof window.requestAnimationFrame === 'function'), 'needed for anything that moves');
+  set('api', 'crypto.getRandomValues', 'minor',
+      ok(!!(window.crypto && crypto.getRandomValues)), '');
+  set('api', 'crypto.randomUUID', 'info',
+      (window.crypto && crypto.randomUUID) ? 'PASS' : 'INFO',
+      (window.crypto && crypto.randomUUID) ? '' : 'absent — the game has a fallback');
+
+  if (window.crypto && crypto.subtle && crypto.subtle.digest && typeof TextEncoder === 'function') {
+    try {
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode('night shift')).then(function (buf) {
+        var bytes = new Uint8Array(buf), hex = '';
+        for (var i = 0; i < 6; i++) hex += ('0' + bytes[i].toString(16)).slice(-2);
+        set('api', 'crypto.subtle', 'info', 'PASS', 'SHA-256 works (' + hex + '…)');
+      }, function (e) { set('api', 'crypto.subtle', 'info', 'INFO', 'rejected: ' + ((e && e.message) || e)); });
+    } catch (e) { set('api', 'crypto.subtle', 'info', 'INFO', (e && e.message) || e); }
+  } else {
+    set('api', 'crypto.subtle', 'info', 'INFO', 'absent — the game hand-rolls its hashes anyway');
+  }
+
+  set('api', 'TextEncoder', 'minor', ok(typeof TextEncoder === 'function'), '');
+  set('api', 'WebAudio', 'minor', ok(!!(window.AudioContext || window.webkitAudioContext)),
+      'sound still needs a click to start');
+
+  (function workerProbe() {
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (!settled) { settled = true; set('api', 'Worker (blob URL)', 'info', 'INFO', 'no reply in 1.5s (unused)'); }
+    }, 1500);
+    function done(detail) {
+      if (settled) return;
+      settled = true; clearTimeout(timer);
+      set('api', 'Worker (blob URL)', 'info', 'INFO', detail);
+    }
+    try {
+      var url = URL.createObjectURL(new Blob(['self.onmessage=function(e){self.postMessage(e.data*2)}'],
+        { type: 'text/javascript' }));
+      var worker = new Worker(url);
+      worker.onmessage = function (ev) {
+        done(ev.data === 42 ? 'works (unused by the game)' : 'replied oddly');
+        try { worker.terminate(); URL.revokeObjectURL(url); } catch (e) {}
+      };
+      worker.onerror = function () { done('blocked (unused by the game)'); };
+      worker.postMessage(21);
+    } catch (e) { done('threw (unused by the game)'); }
+  })();
+
+  try {
+    WebAssembly.instantiate(new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0])).then(function () {
+      set('api', 'WebAssembly', 'info', 'INFO', 'compiles from inline bytes (unused, kept as an option)');
+    }, function (e) { set('api', 'WebAssembly', 'info', 'INFO', 'refused: ' + ((e && e.message) || e)); });
+  } catch (e) { set('api', 'WebAssembly', 'info', 'INFO', 'unavailable'); }
+
+  try {
+    fetch(href).then(
+      function () { set('api', 'fetch', 'info', 'INFO', 'allowed (so this is not a local file)'); },
+      function () { set('api', 'fetch', 'info', 'INFO', 'blocked, as expected — the game never uses it'); }
+    );
+  } catch (e) { set('api', 'fetch', 'info', 'INFO', 'threw, as expected'); }
+
+  set('api', 'Service Worker', 'info', 'INFO',
+      ('serviceWorker' in navigator) ? 'API present but unusable on file: (unused)' : 'absent (expected)');
+
+  /* ============ performance ============ */
+
+  (function opsBenchmark() {
+    var start = (window.performance && performance.now) ? performance.now() : new Date().getTime();
+    var acc = 0;
+    for (var i = 0; i < 2000000; i++) { acc = (acc + i * 2654435761) >>> 0; }
+    var end = (window.performance && performance.now) ? performance.now() : new Date().getTime();
+    var ms = Math.round(end - start);
+    set('perf', 'CPU', 'major', ms < 400 ? 'PASS' : 'WARN',
+        ms + 'ms for 2M ops' + (ms < 400 ? '' : ' — slow; expect sluggish animation'));
+  })();
+
+  if (typeof window.requestAnimationFrame === 'function') {
+    set('perf', 'Frame rate', 'major', 'PENDING', 'measuring…');
+    var frames = 0, firstFrame = 0;
+    requestAnimationFrame(function step(now) {
+      if (!firstFrame) firstFrame = now;
+      frames++;
+      if (frames < 30) { requestAnimationFrame(step); return; }
+      var perFrame = (now - firstFrame) / frames;
+      var fps = Math.round(1000 / perFrame);
+      set('perf', 'Frame rate', 'major', fps >= 30 ? 'PASS' : 'FAIL',
+          'about ' + fps + ' fps (' + perFrame.toFixed(1) + 'ms per frame)' +
+          (fps >= 30 ? '' : ' — too slow for timed rounds'));
+    });
+  } else {
+    set('perf', 'Frame rate', 'major', 'FAIL', 'requestAnimationFrame is unavailable');
+  }
+
+  set('perf', 'Hardware', 'info', 'INFO',
+      'cores ' + (navigator.hardwareConcurrency || '?') +
+      (navigator.deviceMemory ? ', about ' + navigator.deviceMemory + ' GB RAM' : ''));
+
+  if (window.performance && performance.memory) {
+    set('perf', 'JS heap limit', 'info', 'INFO',
+        Math.round(performance.memory.jsHeapSizeLimit / 1048576) + ' MB');
+  }
+
+  /* ============ blockers summary ============ */
+
+  function refreshBlockers() {
+    var failing = [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].group !== 'block' && rows[i].severity === 'blocker' && rows[i].status === 'FAIL') {
+        failing.push(rows[i].name);
+      }
+    }
+    set('block', 'Blocking problems', 'info', failing.length ? 'FAIL' : 'PASS',
+        failing.length ? failing.join(' · ') : 'none found — nothing here stops the game running');
+  }
+
+  /* ============ report ============ */
+
+  function padRight(text, width) {
+    var out = String(text);
+    while (out.length < width) out += ' ';
+    return out;
+  }
+
+  function report() {
+    var lines = [];
+    lines.push('NIGHT SHIFT — PREFLIGHT REPORT (v2)');
+    lines.push('generated ' + new Date().toString());
+    lines.push('');
+    var titles = {
+      block: 'BLOCKERS', lang: 'LANGUAGE LEVEL', env: 'ENVIRONMENT', store: 'PERSISTENCE',
+      io: 'IMPORT / EXPORT', render: 'RENDERING', input: 'INPUT', api: 'PLATFORM APIS',
+      perf: 'PERFORMANCE'
+    };
+    var order = ['block', 'lang', 'env', 'store', 'io', 'render', 'input', 'api', 'perf'];
+    for (var g = 0; g < order.length; g++) {
+      lines.push('== ' + titles[order[g]] + ' ==');
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (r.group !== order[g]) continue;
+        var status = r.status === 'PENDING' ? 'PEND' : r.status;
+        lines.push('  [' + padRight(status, 4) + '] ' + padRight(r.severity === 'info' ? '' : r.severity, 8) +
+                   r.name + (r.detail ? ('  — ' + r.detail) : ''));
+      }
+      lines.push('');
+    }
+    var host = document.getElementById('verdict');
+    lines.push('== VERDICT ==');
+    lines.push('  ' + host.querySelector('b').textContent + ' — ' + host.querySelector('p').textContent);
+    lines.push('');
+    lines.push('Still needed: screenshots of chrome://policy, chrome://management, chrome://version');
+    return lines.join('\n');
+  }
+
+  /* ============ interactive tests ============ */
+
+  document.getElementById('b-dl').onclick = function () {
+    try {
+      var url = URL.createObjectURL(new Blob([report()], { type: 'text/plain' }));
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'nightshift-preflight.txt';
+      document.body.appendChild(link);
+      link.click();
+      if (link.parentNode) link.parentNode.removeChild(link);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      set('io', 'Download', 'major', 'PASS',
+          'fired — look for nightshift-preflight.txt. If nothing appeared, tell me and treat this as FAIL');
+    } catch (e) {
+      set('io', 'Download', 'major', 'FAIL', (e && e.message) || e);
+    }
+  };
+
+  document.getElementById('b-pick').onclick = function () {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.style.display = 'none';
+    input.onchange = function (ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) { set('io', 'File picker + read', 'major', 'WARN', 'no file chosen'); return; }
+      try {
+        var reader = new FileReader();
+        reader.onload = function () {
+          set('io', 'File picker + read', 'major', 'PASS',
+              'read "' + file.name + '" (' + file.size + ' bytes)');
+        };
+        reader.onerror = function () { set('io', 'File picker + read', 'major', 'FAIL', 'FileReader failed'); };
+        reader.readAsText(file.slice(0, 2048));
+      } catch (e) {
+        set('io', 'File picker + read', 'major', 'FAIL', (e && e.message) || e);
+      }
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(function () {
+      if (statusOf('File picker + read') === 'PENDING') {
+        set('io', 'File picker + read', 'major', 'PENDING',
+            'did a dialog open? pick any small text file. No dialog at all means FAIL (AllowFileSelectionDialogs)');
+      }
+    }, 1500);
+  };
+
+  document.getElementById('b-clip').onclick = function () {
+    var sample = 'night shift clipboard test';
+    function legacy(why) {
+      try {
+        var area = document.createElement('textarea');
+        area.value = sample;
+        document.body.appendChild(area);
+        area.select();
+        var worked = document.execCommand('copy');
+        if (area.parentNode) area.parentNode.removeChild(area);
+        set('io', 'Clipboard copy', 'minor', ok(worked),
+            worked ? 'fallback textarea worked (' + why + ')' : 'both methods failed');
+      } catch (e) {
+        set('io', 'Clipboard copy', 'minor', 'FAIL', (e && e.message) || e);
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(sample).then(
+        function () { set('io', 'Clipboard copy', 'minor', 'PASS', 'navigator.clipboard worked'); },
+        function (e) { legacy((e && e.name) || 'clipboard API rejected'); }
+      );
+    } else {
+      legacy('no clipboard API');
+    }
+  };
+
+  var pasteField = document.getElementById('pastefield');
+  pasteField.addEventListener('paste', function () {
+    setTimeout(function () {
+      set('io', 'Clipboard paste', 'minor', 'PASS',
+          'received ' + pasteField.value.length + ' characters');
+    }, 0);
+  });
+
+  var keyField = document.getElementById('keyfield');
+  keyField.addEventListener('keydown', function (ev) {
+    set('input', 'Keyboard', 'blocker', 'PASS',
+        'received "' + (ev.key || ev.keyCode) + '"');
+    refreshBlockers();
+  });
+
+  document.getElementById('b-restart').onclick = function () {
+    if (storageError) {
+      set('store', 'Survives a browser restart', 'major', 'FAIL', 'storage is unavailable here');
+      refreshBlockers();
+      return;
+    }
+    if (launchCount > 1) {
+      set('store', 'Survives a browser restart', 'major', 'PASS',
+          'data from an earlier load was still here (load #' + launchCount +
+          ', first seen ' + firstSeen + ') — the browser is not wiping it on exit');
+    } else if (volatilePath) {
+      set('store', 'Survives a browser restart', 'major', 'FAIL',
+          'nothing survived — but this is a temporary folder, so the path itself changed. ' +
+          'Save the file somewhere stable and retry before concluding anything');
+    } else {
+      set('store', 'Survives a browser restart', 'major', 'FAIL',
+          'nothing survived: this counted as load #1, so the browser cleared saved data on exit');
+    }
+    refreshBlockers();
+  };
+
+  document.getElementById('b-copy').onclick = function () {
+    var button = this;
+    function finish(worked) {
+      button.textContent = worked ? 'Copied' : 'Could not copy — use "Show as text"';
+      setTimeout(function () { button.textContent = 'Copy diagnostics'; }, 2500);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report()).then(function () { finish(true); }, function () { finish(false); });
+    } else {
+      finish(false);
+    }
+  };
+
+  document.getElementById('b-show').onclick = function () {
+    var area = document.getElementById('out');
+    area.value = report();
+    area.hidden = !area.hidden;
+    if (!area.hidden) { area.focus(); area.select(); }
+  };
+
+  document.getElementById('b-reset').onclick = function () {
+    try {
+      localStorage.removeItem(KEY);
+      sessionStorage.removeItem(KEY);
+      sessionStorage.removeItem(RESTART_KEY);
+      this.textContent = 'Cleared — reload to retest';
+    } catch (e) {
+      this.textContent = 'Could not clear';
+    }
+  };
+
+  window.onerror = function (message, source, line, column) {
+    set('env', 'Uncaught error', 'blocker', 'FAIL', message + ' @' + line + ':' + column);
+    refreshBlockers();
+  };
+
+  refreshBlockers();
+  paint();
+
+  /* Reaching here means the whole script parsed and ran. */
+  if (partial) partial.hidden = true;
+})();
+</script>
+</body>
+</html>

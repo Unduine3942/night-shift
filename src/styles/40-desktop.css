@@ -1,0 +1,538 @@
+/* The desktop: two bars and a working area with windows floating in it.
+
+   Fixed to the viewport rather than laid out in the page, so it does not inherit
+   the host container's max-width and so the page itself never scrolls — the
+   windows scroll, the desk does not. */
+
+.desk {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background:
+    radial-gradient(1100px 620px at 78% -8%, rgba(88, 166, 255, 0.10), transparent 60%),
+    radial-gradient(760px 520px at 8% 108%, rgba(76, 195, 138, 0.09), transparent 62%),
+    var(--bg);
+  overflow: hidden;
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  font-size: 0.85rem;
+}
+
+.topbar-identity { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.topbar-company { font-weight: 600; white-space: nowrap; }
+.topbar-rank { color: var(--dim); font-size: 0.78rem; white-space: nowrap; }
+
+.topbar-progress { display: flex; align-items: center; gap: 8px; }
+
+.topbar-bar {
+  width: 120px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.topbar-bar-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
+.topbar-counts { color: var(--dim); font-size: 0.75rem; white-space: nowrap; font-family: var(--mono); }
+
+.topbar .hud-storage {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar .hud-storage-session { color: var(--warn); }
+.topbar .hud-storage-none { color: var(--fail); }
+
+.topbar-clock {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+
+/* ---------- working area ---------- */
+
+.desk-area { position: relative; overflow: hidden; }
+
+.desk-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--dim);
+}
+
+.desk-empty-title { margin: 0; font-size: 1.1rem; color: var(--txt); }
+.desk-empty p { margin: 0; }
+
+/* ---------- a window ---------- */
+
+.win {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+  min-height: 180px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+}
+
+.win-focused { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.win-dragging { user-select: none; box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55); }
+
+.win-max {
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  box-shadow: none;
+}
+
+.win-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.win-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.win-dragging .win-bar { cursor: grabbing; }
+.win-max .win-bar { cursor: default; }
+
+.win-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: 0 0 auto; }
+.win-dot-mail { background: var(--info); }
+.win-dot-terminal { background: var(--accent); }
+.win-dot-training { background: var(--warn); }
+.win-dot-manual { background: #a371f7; }
+.win-dot-system { background: var(--dim); }
+
+.win-title { font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+
+.win-subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.win-buttons { margin-left: auto; display: flex; gap: 2px; flex: 0 0 auto; }
+
+.win-btn {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.win-btn:hover { background: var(--line); color: var(--txt); }
+.win-btn-close:hover { background: var(--fail); color: #fff; }
+
+.win-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  overscroll-behavior: contain;
+}
+
+.win-broken { color: var(--dim); display: flex; flex-direction: column; gap: 10px; }
+
+.win-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(135deg, transparent 50%, var(--line) 50%, var(--line) 62%, transparent 62%,
+    transparent 74%, var(--line) 74%, var(--line) 86%, transparent 86%);
+}
+
+/* ---------- taskbar ---------- */
+
+.taskbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px var(--gutter);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+
+.taskbar-apps { display: flex; gap: 4px; flex-wrap: wrap; }
+.taskbar-right { margin-left: auto; }
+
+.task {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  font: inherit;
+  font-size: 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.task:hover { background: var(--panel-2); color: var(--txt); }
+.task-open { color: var(--txt); background: var(--panel-2); }
+.task-focused { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--txt); }
+.task-min { opacity: 0.68; }
+.task-quiet { font-size: 0.75rem; }
+
+.task-dot { width: 7px; height: 7px; border-radius: 50%; opacity: 0.45; }
+.task-open .task-dot, .task-focused .task-dot { opacity: 1; }
+
+.task-badge {
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 17px;
+  text-align: center;
+}
+
+/* ---------- panes inside windows ---------- */
+
+.pane { display: flex; flex-direction: column; gap: 12px; }
+
+/* Mail */
+
+.mail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--dim);
+}
+
+.mail-clock { font-family: var(--mono); }
+.msg-list { display: flex; flex-direction: column; gap: 6px; }
+.msg-list-locked { margin-top: 6px; opacity: 0.6; }
+
+.msg-count {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 9px 11px;
+  text-align: left;
+  font: inherit;
+  color: var(--txt);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.msg:hover { border-color: var(--dim); }
+.msg-networking { border-left-color: var(--info); }
+.msg-it { border-left-color: var(--accent); }
+.msg-data { border-left-color: var(--warn); }
+.msg-security { border-left-color: var(--fail); }
+.msg-locked { cursor: default; border-left-color: var(--line); }
+.msg-locked:hover { border-color: var(--line); }
+
+.msg-line { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--dim); }
+.msg-from { font-weight: 500; color: var(--txt); }
+.msg-id { font-family: var(--mono); font-size: 0.7rem; color: var(--dim); margin-left: auto; }
+.msg-subject { font-size: 0.95rem; line-height: 1.35; }
+.msg-meta { gap: 10px; }
+.msg-xp { font-family: var(--mono); margin-left: auto; }
+
+.pri {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid currentColor;
+}
+
+.pri-p1 { color: var(--fail); }
+.pri-p2 { color: var(--warn); }
+.pri-p3 { color: var(--dim); }
+.pri-hold { color: var(--dim); opacity: 0.8; }
+.pri-done { color: var(--accent); }
+
+.mail-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+}
+
+.ticket-subject { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.ticket-from { margin: 0; font-size: 0.8rem; color: var(--dim); }
+.ticket-body { margin: 0; line-height: 1.6; }
+
+.ticket-where {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--line);
+  color: var(--dim);
+  font-size: 0.82rem;
+}
+
+/* Terminal
+
+   The shared terminal styles size the scrollback against the VIEWPORT
+   (min-height 300px, max-height 52vh), which was right for a full-page screen
+   and is wrong inside a window the player can resize to anything. Here it fills
+   its own window instead and scrolls inside it, so the prompt and the tool
+   buttons stay on screen at every window size. */
+
+.win-terminal .win-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.pane-terminal { flex: 1 1 auto; min-height: 0; }
+.pane-terminal .engine-terminal { flex: 1 1 auto; min-height: 0; }
+
+.win .term {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.win .term-banner,
+.win .term-asks,
+.win .term-tools { flex: 0 0 auto; }
+
+.term-banner {
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: var(--r-sm);
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  color: var(--dim);
+}
+
+.term-banner-live { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--accent); }
+.term-banner-practice { border-style: dashed; }
+
+/* Training */
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+
+.tab {
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.tab:hover { background: var(--panel-2); color: var(--txt); }
+.tab-on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tab-due { border-color: var(--warn); color: var(--warn); }
+
+.training-pane { display: flex; flex-direction: column; gap: 12px; }
+.drill-list { display: flex; flex-direction: column; gap: 6px; }
+.drill-list-locked { opacity: 0.55; }
+
+.drill {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 9px 11px;
+  text-align: left;
+  font: inherit;
+  color: var(--txt);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.drill:hover { border-color: var(--dim); }
+.drill-locked { cursor: default; }
+.drill-line { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: var(--dim); }
+.drill-engine { font-family: var(--mono); }
+.drill-xp { font-family: var(--mono); margin-left: auto; }
+.drill-title { font-size: 0.93rem; line-height: 1.35; }
+.drill-heading { margin: 0; font-size: 1.1rem; }
+.drill-brief { margin: 0; line-height: 1.6; }
+
+.chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+}
+
+.chip-networking { color: var(--info); }
+.chip-it { color: var(--accent); }
+.chip-data { color: var(--warn); }
+.chip-security { color: var(--fail); }
+
+/* ---------- narrow screens ---------- */
+
+/* Below the floating-desktop threshold there is nowhere to drag a window to, so
+   the focused one fills the area and the taskbar becomes the only way to switch.
+   The model decides this (isNarrow); these rules only dress the result. */
+
+.desk-narrow .topbar { flex-wrap: wrap; gap: 6px 14px; }
+.desk-narrow .topbar .hud-storage { flex-basis: 100%; text-align: left; white-space: normal; }
+.desk-narrow .topbar-clock { margin-left: auto; padding-left: 0; border-left: 0; }
+.desk-narrow .taskbar { overflow-x: auto; }
+.desk-narrow .task-label { display: none; }
+.desk-narrow .task-quiet .task-label { display: inline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-bar-fill { transition: none; }
+}
+
+/* ---------- the Manual's command walkthroughs ---------- */
+
+.pane-manual { height: 100%; }
+
+.walk-index { display: flex; flex-direction: column; gap: 16px; }
+.walk-group h3 { margin: 0 0 6px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); }
+.walk-list { display: flex; flex-direction: column; gap: 4px; }
+
+.walk-pick {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  font: inherit;
+  color: var(--txt);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.walk-pick:hover { border-color: var(--dim); }
+.walk-pick-on { border-color: var(--accent); }
+.walk-pick-name { font-family: var(--mono); font-size: 0.85rem; color: var(--accent); flex: 0 0 auto; min-width: 88px; }
+.walk-pick-summary { font-size: 0.82rem; color: var(--dim); }
+
+.walk-open { display: flex; flex-direction: column; gap: 12px; }
+.walk { display: flex; flex-direction: column; gap: 12px; }
+.walk-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.walk-name { margin: 0; font-family: var(--mono); font-size: 1.15rem; }
+.walk-tag { font-size: 0.7rem; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.walk-summary { margin: 0; flex-basis: 100%; color: var(--dim); font-size: 0.86rem; }
+.walk-idea { margin: 0; line-height: 1.6; }
+
+.walk-concepts { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-concept { color: var(--info); cursor: help; }
+
+.walk-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 14px; }
+.walk-step-title { margin: 0 0 6px; font-weight: 600; }
+
+.walk-line {
+  display: block;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  background: #05070a;
+  color: #cfe3d4;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-left: 3px solid var(--accent);
+}
+
+.walk-line-bad { border-left-color: var(--fail); }
+.walk-look { margin: 6px 0 0; font-family: var(--mono); font-size: 0.75rem; color: var(--warn); }
+.walk-why { margin: 6px 0 0; font-size: 0.88rem; line-height: 1.55; color: var(--txt); }
+
+.walk-reading { margin: 0; }
+.walk-reading dt { margin-top: 8px; }
+.walk-reading dt code { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); }
+.walk-reading dd { margin: 2px 0 0; color: var(--dim); font-size: 0.88rem; }
+
+.walk-mistakes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; }
+
+.walk-see { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 0.85rem; color: var(--dim); }
+
+.link {
+  padding: 1px 4px;
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--info);
+  cursor: pointer;
+  text-decoration: underline;
+}

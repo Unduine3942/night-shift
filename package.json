@@ -1,0 +1,17 @@
+{
+  "name": "nightshift",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline IT / networking / data / security career sim. Ships as one self-contained HTML file that runs from file://",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage \"tests/**/*.test.js\"",
+    "bundle": "node build/bundle.mjs",
+    "build": "node build/bundle.mjs && node build/inline.mjs && node build/budget.mjs",
+    "check": "npm test && npm run build"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

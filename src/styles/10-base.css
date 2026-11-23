@@ -1,0 +1,91 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px var(--gutter) 64px;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+code, kbd, pre { font-family: var(--mono); }
+
+/* Shown when the app cannot start at all. Deliberately plain: it has to render
+   even if the rest of the stylesheet or the app bundle is the thing that broke. */
+.hard-stop {
+  margin: 24px auto;
+  max-width: 720px;
+  padding: 20px 22px;
+  border-radius: var(--r-md);
+  background: #f85149;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+.hard-stop b { display: block; margin-bottom: 6px; font-size: 1.05rem; }
+
+.hard-stop pre {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: var(--r-sm);
+  font-size: 0.76rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.hard-stop button {
+  margin-top: 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  color: #b3201a;
+  cursor: pointer;
+}
+
+/* Recovery actions on the crash panel — the way back out. */
+.hard-stop .crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.hard-stop .crash-actions button { margin-top: 0; }
+.hard-stop button[disabled] { opacity: 0.65; }
+
+.hard-stop textarea {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.28);
+  color: #ffffff;
+  resize: vertical;
+}
